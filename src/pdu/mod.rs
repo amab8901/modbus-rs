@@ -1,6 +1,7 @@
 pub mod coil;
 pub mod exception_response;
 pub mod function_code;
+pub mod identification;
 pub mod request;
 pub mod response;
 pub mod word;

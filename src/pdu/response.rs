@@ -1,10 +1,15 @@
 use crate::{
     error::{DecodeError, EncodeError, ExceptionError},
     exception_code::ExceptionCode,
+    pdu::identification::{
+        NextObjectId, NumberOfObjects, conformity_level::ConformityLevel,
+        devid_object::DeviceIdentificationObject, list_of_id_objects::ListOfIdObjects,
+        mei_type::MeiType, more_follows::MoreFollows, read_device_id_code::ReadDeviceIdCode,
+    },
 };
 
 use super::{
-    coil_to_u16_coil, function_code::FunctionCode, Address, DataCoils, DataWords, Quantity,
+    Address, DataCoils, DataWords, Quantity, coil_to_u16_coil, function_code::FunctionCode,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -17,6 +22,16 @@ pub enum Response<'a> {
     WriteSingleRegister(Address, u16),
     WriteMultipleCoils(Address, Quantity),
     WriteMultipleRegisters(Address, Quantity),
+    ReadDeviceIdentification(
+        FunctionCode,
+        MeiType,
+        ReadDeviceIdCode,
+        ConformityLevel,
+        MoreFollows,
+        NextObjectId,
+        NumberOfObjects,
+        ListOfIdObjects,
+    ),
     MaskWriteRegister(Address, u16, u16),
     ReadWriteMultipleRegisters(DataWords<'a>),
     Custom(FunctionCode, &'a [u8]),
@@ -35,6 +50,9 @@ impl<'a> Response<'a> {
             | Response::WriteSingleRegister(_, _)
             | Response::WriteMultipleCoils(_, _)
             | Response::WriteMultipleRegisters(_, _) => 5,
+            Response::ReadDeviceIdentification(_, _, _, _, _, _, _, list_of_id_objects) => {
+                7 + list_of_id_objects.bytes_len()
+            }
             Response::MaskWriteRegister(_, _, _) => 7,
             Response::Custom(_, d) => 1 + d.len(),
         }
@@ -68,6 +86,29 @@ impl<'a> Response<'a> {
             | Response::WriteMultipleRegisters(address, data) => {
                 buf[1..3].copy_from_slice(&address.to_be_bytes());
                 buf[3..5].copy_from_slice(&data.to_be_bytes());
+            }
+            Response::ReadDeviceIdentification(
+                _,
+                mei_type,
+                read_device_id_code,
+                conformity_level,
+                more_follows,
+                next_object_id,
+                number_of_objects,
+                list_of_id_objects,
+            ) => {
+                buf[1] = *mei_type as u8;
+                buf[2] = *read_device_id_code as u8;
+                buf[3] = *conformity_level as u8;
+                buf[4] = *more_follows as u8;
+                buf[5] = *next_object_id as u8;
+                buf[6] = *number_of_objects;
+                buf[7..]
+                    .iter_mut()
+                    .zip(list_of_id_objects.bytes())
+                    .for_each(|(bu, by)| {
+                        *bu = by;
+                    });
             }
             Response::MaskWriteRegister(address, and_mask, or_mask) => {
                 buf[1..3].copy_from_slice(&address.to_be_bytes());
@@ -179,7 +220,7 @@ impl<'a> Response<'a> {
                                 return Err(DecodeError::ModbusExceptionError(
                                     fn_code,
                                     ExceptionError::IllegalDataValue,
-                                ))
+                                ));
                             }
                         };
                         Response::WriteSingleCoil(address, value)
@@ -209,6 +250,44 @@ impl<'a> Response<'a> {
                     }
                     _ => unreachable!(),
                 }
+            }
+            FunctionCode::ReadDeviceIdentification => {
+                let mei_type = MeiType::try_from(buf[1]).unwrap();
+                let read_device_id_code = ReadDeviceIdCode::try_from(buf[2]).unwrap();
+                let conformity_level = ConformityLevel::try_from(buf[3]).unwrap();
+                let more_follows = MoreFollows::try_from(buf[4]).unwrap();
+                let next_object_id = buf[5];
+                let number_of_objects = buf[6];
+
+                let mut obj_start_byte_index = 9;
+                let mut obj_length = buf[8] as usize;
+                let mut list_of_objects = [DeviceIdentificationObject::new_empty(); 256];
+
+                for object in &mut list_of_objects {
+                    let dio = DeviceIdentificationObject::try_from(
+                        &buf[obj_start_byte_index..(obj_start_byte_index + obj_length)],
+                    )
+                    .unwrap();
+                    obj_start_byte_index += obj_length;
+                    obj_length = dio.length as usize;
+
+                    *object = dio;
+                }
+
+                let list_of_id_objects_struct = ListOfIdObjects {
+                    list_of_id_objects: list_of_objects,
+                };
+
+                Response::ReadDeviceIdentification(
+                    fn_code,
+                    mei_type,
+                    read_device_id_code,
+                    conformity_level,
+                    more_follows,
+                    next_object_id,
+                    number_of_objects,
+                    list_of_id_objects_struct,
+                )
             }
             FunctionCode::MaskWriteRegister => {
                 if 7 > buf.len() {
@@ -241,7 +320,7 @@ impl<'a> TryFrom<&'a [u8]> for Response<'a> {
 mod test {
     use crate::{
         exception_code::ExceptionCode,
-        pdu::{function_code::FunctionCode, DataWords},
+        pdu::{DataWords, function_code::FunctionCode},
     };
 
     use super::{DataCoils, DecodeError, Response};

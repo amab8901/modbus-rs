@@ -10,6 +10,7 @@ pub enum FunctionCode {
     WriteSingleRegister,
     WriteMultipleCoils,
     WriteMultipleRegisters,
+    ReadDeviceIdentification,
     MaskWriteRegister,
     ReadWriteMultipleRegisters,
     Custom(u8),
@@ -29,6 +30,7 @@ impl TryFrom<u8> for FunctionCode {
             0x06 => Ok(WriteSingleRegister),
             0x0F => Ok(WriteMultipleCoils),
             0x10 => Ok(WriteMultipleRegisters),
+            0x2B => Ok(ReadDeviceIdentification),
             0x16 => Ok(MaskWriteRegister),
             0x17 => Ok(ReadWriteMultipleRegisters),
             0x80.. => Err(code),
@@ -49,6 +51,7 @@ impl From<FunctionCode> for u8 {
             WriteSingleRegister => 0x06,
             WriteMultipleCoils => 0x0F,
             WriteMultipleRegisters => 0x10,
+            ReadDeviceIdentification => 0x2B,
             MaskWriteRegister => 0x16,
             ReadWriteMultipleRegisters => 0x17,
             Custom(code) => code,
@@ -67,6 +70,9 @@ impl<'a> From<&PduResponse<'a>> for FunctionCode {
             PduResponse::WriteSingleRegister(_, _) => FunctionCode::WriteSingleRegister,
             PduResponse::WriteMultipleCoils(_, _) => FunctionCode::WriteMultipleCoils,
             PduResponse::WriteMultipleRegisters(_, _) => FunctionCode::WriteMultipleRegisters,
+            PduResponse::ReadDeviceIdentification(_, _, _, _, _, _, _, _) => {
+                FunctionCode::ReadDeviceIdentification
+            }
             PduResponse::MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
             PduResponse::ReadWriteMultipleRegisters(_) => FunctionCode::ReadWriteMultipleRegisters,
             PduResponse::Custom(fn_code, _) => *fn_code,
@@ -85,6 +91,7 @@ impl<'a> From<&PduRequest<'a>> for FunctionCode {
             PduRequest::WriteSingleRegister(_, _) => FunctionCode::WriteSingleRegister,
             PduRequest::WriteMultipleCoils(_, _) => FunctionCode::WriteMultipleCoils,
             PduRequest::WriteMultipleRegisters(_, _) => FunctionCode::WriteMultipleRegisters,
+            PduRequest::ReadDeviceIdentification(_, _, _) => FunctionCode::ReadDeviceIdentification,
             PduRequest::MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
             PduRequest::ReadWriteMultipleRegisters(_, _, _, _) => {
                 FunctionCode::ReadWriteMultipleRegisters

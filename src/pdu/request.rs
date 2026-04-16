@@ -1,15 +1,17 @@
 use crate::{
     error::{DecodeError, EncodeError, ExceptionError},
     exception_code::ExceptionCode,
+    pdu::identification::{ObjectId, mei_type::MeiType, read_device_id_code::ReadDeviceIdCode},
 };
 
 use super::{
-    coil_to_u16_coil, function_code::FunctionCode, u16_coil_to_coil, Address, DataCoils, DataWords,
-    Quantity,
+    Address, DataCoils, DataWords, Quantity, coil_to_u16_coil, function_code::FunctionCode,
+    u16_coil_to_coil,
 };
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request<'a> {
+    ReadDeviceIdentification(MeiType, ReadDeviceIdCode, ObjectId),
     ReadCoils(Address, Quantity),
     ReadDiscreteInput(Address, Quantity),
     ReadHoldingRegisters(Address, Quantity),
@@ -26,6 +28,7 @@ pub enum Request<'a> {
 impl<'a> Request<'a> {
     pub fn pdu_len(&self) -> usize {
         match &self {
+            Request::ReadDeviceIdentification(_, _, _) => 4,
             Request::ReadCoils(_, _)
             | Request::ReadDiscreteInput(_, _)
             | Request::ReadHoldingRegisters(_, _)
@@ -48,6 +51,11 @@ impl<'a> Request<'a> {
         buf[0] = FunctionCode::from(self).into();
 
         match &self {
+            Request::ReadDeviceIdentification(mei_type, read_device_id_code, object_id) => {
+                buf[1] = *mei_type as u8;
+                buf[2] = *read_device_id_code as u8;
+                buf[3] = *object_id;
+            }
             Request::ReadCoils(address, quantity)
             | Request::ReadDiscreteInput(address, quantity)
             | Request::ReadHoldingRegisters(address, quantity)
@@ -253,6 +261,19 @@ impl<'a> Request<'a> {
                 let data = &buf[6..byte_count + 6];
                 Request::WriteMultipleRegisters(address, DataWords::new(data, quantity as usize))
             }
+            FunctionCode::ReadDeviceIdentification => {
+                if 5 < buf.len() {
+                    return Err(DecodeError::IncompleteBuffer {
+                        current_size: buf.len(),
+                        min_needed_size: 4,
+                    });
+                }
+                let mei_type = MeiType::try_from(buf[1]).unwrap();
+                let read_device_id_code = ReadDeviceIdCode::try_from(buf[2]).unwrap();
+                let object_id = buf[3];
+
+                Request::ReadDeviceIdentification(mei_type, read_device_id_code, object_id)
+            }
             FunctionCode::MaskWriteRegister => {
                 if 7 > buf.len() {
                     return Err(DecodeError::IncompleteBuffer {
@@ -323,7 +344,7 @@ mod test {
     use crate::{
         error::ExceptionError,
         exception_code::ExceptionCode,
-        pdu::{function_code::FunctionCode, DataCoils},
+        pdu::{DataCoils, function_code::FunctionCode},
     };
 
     use super::{DecodeError, Request};
