@@ -30,7 +30,7 @@ pub enum Response<'a> {
         MoreFollows,
         NextObjectId,
         NumberOfObjects,
-        ListOfIdObjects,
+        ListOfIdObjects<'a>,
     ),
     MaskWriteRegister(Address, u16, u16),
     ReadWriteMultipleRegisters(DataWords<'a>),
