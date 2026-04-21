@@ -4,7 +4,7 @@ use crate::{
 };
 
 use super::{
-    coil_to_u16_coil, function_code::FunctionCode, Address, DataCoils, DataWords, Quantity,
+    Address, DataCoils, DataWords, Quantity, coil_to_u16_coil, function_code::FunctionCode,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -179,7 +179,7 @@ impl<'a> Response<'a> {
                                 return Err(DecodeError::ModbusExceptionError(
                                     fn_code,
                                     ExceptionError::IllegalDataValue,
-                                ))
+                                ));
                             }
                         };
                         Response::WriteSingleCoil(address, value)
@@ -241,7 +241,7 @@ impl<'a> TryFrom<&'a [u8]> for Response<'a> {
 mod test {
     use crate::{
         exception_code::ExceptionCode,
-        pdu::{function_code::FunctionCode, DataWords},
+        pdu::{DataWords, function_code::FunctionCode},
     };
 
     use super::{DataCoils, DecodeError, Response};

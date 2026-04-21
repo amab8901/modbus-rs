@@ -57,9 +57,7 @@ fn main() {
                     continue;
                 }
                 DecodeError::ModbusExceptionError(fn_code, exception_error) => {
-                    println!(
-                        "Modbus exception error: {fn_code:?} {exception_error:?}"
-                    );
+                    println!("Modbus exception error: {fn_code:?} {exception_error:?}");
                     break;
                 }
                 DecodeError::ModbusExceptionCode(fn_code, exception_code) => {

@@ -9,8 +9,9 @@ use modbus::{
     error::DecodeError,
     exception_code::ExceptionCode,
     pdu::{
-        exception_response::ExceptionResponse as PduExceptionResponse, function_code::FunctionCode,
-        request::Request as PduRequest, response::Response as PduResponse, DataWords,
+        DataWords, exception_response::ExceptionResponse as PduExceptionResponse,
+        function_code::FunctionCode, request::Request as PduRequest,
+        response::Response as PduResponse,
     },
 };
 
@@ -87,9 +88,7 @@ fn handle_connection(mut stream: TcpStream) {
                     continue;
                 }
                 DecodeError::ModbusExceptionError(fn_code, exception_error) => {
-                    println!(
-                        "Modbus exception error: {fn_code:?} {exception_error:?}"
-                    );
+                    println!("Modbus exception error: {fn_code:?} {exception_error:?}");
                     break;
                 }
                 DecodeError::ModbusExceptionCode(fn_code, exception_code) => {

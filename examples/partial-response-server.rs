@@ -7,7 +7,7 @@ use std::{
 
 use modbus::{
     adu::tcp::response::Response as AduResponse,
-    pdu::{response::Response as PduResponse, DataWords},
+    pdu::{DataWords, response::Response as PduResponse},
 };
 
 fn main() {

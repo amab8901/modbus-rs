@@ -4,8 +4,8 @@ use crate::{
 };
 
 use super::{
-    coil_to_u16_coil, function_code::FunctionCode, u16_coil_to_coil, Address, DataCoils, DataWords,
-    Quantity,
+    Address, DataCoils, DataWords, Quantity, coil_to_u16_coil, function_code::FunctionCode,
+    u16_coil_to_coil,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -323,7 +323,7 @@ mod test {
     use crate::{
         error::ExceptionError,
         exception_code::ExceptionCode,
-        pdu::{function_code::FunctionCode, DataCoils},
+        pdu::{DataCoils, function_code::FunctionCode},
     };
 
     use super::{DecodeError, Request};
